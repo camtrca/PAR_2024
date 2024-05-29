@@ -22,7 +22,7 @@ ros2 launch rosbot_gazebo simulation.launch.py world:=empty.sdf robots:="leader=
  
 - To launch 3 robots name as leader, follower and follower1, use the following command:
  
-ros2 launch rosbot_gazebo simulation.launch.py world:=empty.sdf robots:="leader={x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw:0.0};follower={x: 0.0, y: 1.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0};follower1={x: 0.0, y: 2.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0};follower2={x: 0.3, y: 1.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}"
+ros2 launch rosbot_gazebo simulation.launch.py world:=empty.sdf robots:="leader={x: 0.0, y: 0.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw:0.0};follower={x: 0.0, y: 1.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0};follower1={x: 0.0, y: 2.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 0.0}"
  
 ## Run Swarm package
 The swarm package contains a node ``cmd_vel_republisher`` to replicate the moving action from a robot to other robots.
