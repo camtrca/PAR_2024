@@ -72,6 +72,8 @@ class DistanceReceiver(Node):
 
         # Update the last known position
         self.last_known_pos = relative_pos
+        angle_to_leader = math.atan2(
+            self.last_known_pos['y'], self.last_known_pos['x'])
         
 
     def calculate_and_move(self, current_position):
