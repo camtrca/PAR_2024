@@ -18,22 +18,15 @@ class DistanceReceiver(Node):
         except socket.timeout:
             self.get_logger().error("Connection to the server timed out")
             return
-        # TODO: implement a way to get the leader position from the lauch file
         
-        
-        # TF buffer and listener for frame transformations
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.transform_listener.TransformListener(
-            self.tf_buffer, self)
+    
 
-        
-        
         # Declare parameters with default values x,y,z to 0
-        self.declare_parameter('leader', '{
-                "x": x,
-                "y": y,
-                "z": z}')
-        self.initial_pos = None
+         # Declare parameters with default values
+        self.declare_parameter('leader', {'x': 0.0, 'y': 0.0, 'z': 0.0})
+        leader_param = self.get_parameter('leader').value
+        self.initial_pos = {
+            'x': leader_param['x'], 'y': leader_param['y'], 'z': leader_param['z']}
         self.last_known_pos = None
         
         
@@ -57,7 +50,7 @@ class DistanceReceiver(Node):
                     odom_data = pickle.loads(data)
                     
                     # set relative leader position
-                    self.get_leader_pos(odom_data)
+                    self.get_leader_pos(odom_data['position'])
                     
                     self.calculate_and_move(odom_data['position'])
                 else:
@@ -69,58 +62,16 @@ class DistanceReceiver(Node):
             self.sock.close()
 
     def get_leader_pos(self, leader_pos):
-        # TODO: extract the leader position from the leader_pos variable
-        self.get_logger().info(f"Leader position: {leader_pos}")
+        # TODO: extract the leader position to curren_position from the leader_pos variable
         
-        # TODO: transform leader position (data of leader) to relative postion to follower
-        # Example: leader position at x, and follower position at y, and the follower will see in its frame
-        # the leader position will be y+x
-        
-        time = self.get_clock().now() - rclpy.duration.Duration(seconds=0.1)
-        
-        self.get_logger().info("--------------------------------")
-        # self.get_logger().info("Time:" + str(time))
-        
+        relative_pos = {
+            'x': self.initial_pos['x'] + leader_pos['x'],
+            'y': self.initial_pos['y'] + leader_pos['y'],
+            'z': self.initial_pos['z'] + leader_pos['z']
+        }
 
-        try:
-            # Configure frames
-            dest = 'map'
-            src = 'base_link'
-            self.get_logger().info(f"From frame: {src}")
-            self.get_logger().info(f"To frame: {dest}")
-            
-            
-            # Timeout for transform data
-            timeout = rclpy.duration.Duration(seconds=0.1)
-            
-            self.get_logger().info("start transform")
-            # Lookup a transform
-            transform = self.tf_buffer.lookup_transform(dest, src, time, timeout=timeout)
-            self.get_logger().info(f"Transform: {transform.transform}")
-            
-            # Apply a transform that has been retrieved from the buffer
-            # TODO: set the position of the robot to the leader position + initial postion to transform
-            pose = geometry_msgs.msg.Pose()
-            pose.position.x = 0.0
-            pose.position.y = 0.0
-            pose.position.z = 0.0
-            pose.orientation.w = 1.0
-            poseT = tf2_geometry_msgs.do_transform_pose(pose, transform)
-            self.get_logger().info(f" - Pose: {pose} transformed is {poseT}")
-            
-            # Convert to PostStamped
-            self.get_logger().info("Convering to PostStamped")
-            poseS = geometry_msgs.msg.PoseStamped()
-            poseS.header.frame_id = dest
-            poseS.header.stamp = time.to_msg()
-            poseS.pose = poseT
-
-
-            self.get_logger().info("Convering to PostStamped: ")
-            self.last_known_pos = poseS
-
-        except tf2_ros.TransformException as ex:
-            self.get_logger().info(f'Could not transform {src} to {dest}: {ex}')
+        # Update the last known position
+        self.last_known_pos = relative_pos
         
 
     def calculate_and_move(self, current_position):
