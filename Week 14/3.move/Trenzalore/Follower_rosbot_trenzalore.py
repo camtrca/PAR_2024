@@ -36,6 +36,8 @@ class DistanceReceiver(Node):
 
         self.max_turning_speed = 0.9  # Maximum turning speed
         self.min_turning_speed = 0.1  # Minimum turning speed
+        self.safe_distance = 0.5
+        self.moving_speed = 0.5
         
 
     def odom_callback(self, msg):
@@ -74,8 +76,8 @@ class DistanceReceiver(Node):
             twist.angular.z = 0.0
         
         # Move the robot forward
-        if distance > 0.5:
-            twist.linear.x = 0.5
+        if distance > self.safe_distance:
+            twist.linear.x = self.moving_speed
         else : 
             twist.linear.x = 0.0
 
