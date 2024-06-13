@@ -72,6 +72,12 @@ class DistanceReceiver(Node):
         # Stop turning if the angle is small enough (within 1 degree tolerance)
         if abs(angle_to_point) < 1:
             twist.angular.z = 0.0
+        
+        # Move the robot forward
+        if distance > 0.5:
+            twist.linear.x = 0.5
+        else : 
+            twist.linear.x = 0.0
 
         self.publisher_.publish(twist)
 
