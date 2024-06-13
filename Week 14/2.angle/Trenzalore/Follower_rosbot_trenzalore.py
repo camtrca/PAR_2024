@@ -1,28 +1,20 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
+from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
-import pickle
-import socket
 import math
-import tf2_ros
+import socket
+import pickle
 
 
 class DistanceReceiver(Node):
     def __init__(self):
-        """
-        Initialize the node and set up the TCP client connection to the server.
-        """
-        super().__init__('distance_receiver')
-        # Create a TCP/IP socket for receiving messages
+        super().__init__('distance_receiver_node')
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Connect to the server on the leader robot, assumed to be running on localhost port 50000
-        self.sock.connect(('localhost', 50000))
-        self.get_logger().info("Connected to the server at localhost:50000")
-
-        # Declare parameters with default values x, y, z to 0
-        self.declare_parameter('leader_x', 0.0)
-        self.declare_parameter('leader_y', 0.0)
-        self.declare_parameter('leader_z', 0.0)
+        # Replace with actual server IP and port
+        self.sock.connect(('server_ip', 12345))
 
         self.initial_pos = {
             'x': self.get_parameter('leader_x').get_parameter_value().double_value,
@@ -31,6 +23,81 @@ class DistanceReceiver(Node):
         }
         self.last_known_pos = None
         self.total_distance = 0.0
+
+        # Angle control components
+        self.subscription = self.create_subscription(
+            Odometry,
+            '/odometry/filtered',
+            self.odom_callback,
+            10)
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+
+        self.max_turning_speed = 0.9  # Maximum turning speed
+        self.min_turning_speed = 0.1  # Minimum turning speed
+
+    def odom_callback(self, msg):
+        if self.last_known_pos is None:
+            return
+
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+
+        # Convert quaternion to euler angles
+        yaw = self.quaternion_to_euler(orientation)
+
+        # Calculate angle to target point
+        angle_to_point, direction = self.calculate_angle_and_direction(
+            position, yaw, self.last_known_pos)
+
+        self.get_logger().info(
+            f'Position - x: {position.x}, y: {position.y}, z: {position.z}, Orientation w: {orientation.w}, '
+            f'Angle to Point: {angle_to_point} degrees, Direction: {direction}')
+
+        # Calculate turning speed based on the angle
+        turning_speed = self.calculate_turning_speed(angle_to_point)
+
+        # Publish twist message to turn the robot
+        twist = Twist()
+        if direction == "left":
+            twist.angular.z = turning_speed
+        else:
+            twist.angular.z = -turning_speed
+
+        # Stop turning if the angle is small enough (within 1 degree tolerance)
+        if abs(angle_to_point) < 1:
+            twist.angular.z = 0.0
+
+        self.publisher_.publish(twist)
+
+    def quaternion_to_euler(self, orientation):
+        """Convert a quaternion into euler angles (yaw only, assuming planar movement)."""
+        t3 = 2.0 * (orientation.w * orientation.z +
+                    orientation.x * orientation.y)
+        t4 = 1.0 - 2.0 * (orientation.y * orientation.y +
+                          orientation.z * orientation.z)
+        return math.atan2(t3, t4)
+
+    def calculate_angle_and_direction(self, position, yaw, target_point):
+        """Calculate the angle and direction to the target point."""
+        delta_x = target_point['x'] - position.x
+        delta_y = target_point['y'] - position.y
+        angle_to_point = math.degrees(math.atan2(delta_y, delta_x))
+        angle_difference = angle_to_point - math.degrees(yaw)
+
+        if angle_difference > 180:
+            angle_difference -= 360
+        elif angle_difference < -180:
+            angle_difference += 360
+
+        direction = "left" if angle_difference > 0 else "right"
+        return abs(angle_difference), direction
+
+    def calculate_turning_speed(self, angle):
+        """Calculate turning speed based on the angle to the target point."""
+        if angle > 10:
+            return self.max_turning_speed
+        else:
+            return self.min_turning_speed + (self.max_turning_speed - self.min_turning_speed) * (angle / 10)
 
     def receive_and_process(self):
         try:
@@ -65,8 +132,7 @@ class DistanceReceiver(Node):
         self.last_known_pos = relative_pos
         self.get_logger().info(
             f"Received distance traveled: {self.last_known_pos}")
-        
-        
+
 
 def main(args=None):
     rclpy.init(args=args)
