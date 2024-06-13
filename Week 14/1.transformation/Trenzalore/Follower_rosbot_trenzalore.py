@@ -65,9 +65,8 @@ class DistanceReceiver(Node):
         self.last_known_pos = relative_pos
         self.get_logger().info(
             f"Received distance traveled: {self.last_known_pos}")
-        angle_to_leader = math.atan2(
-            self.last_known_pos['y'], self.last_known_pos['x'])
-
+        
+        
 
 def main(args=None):
     rclpy.init(args=args)
