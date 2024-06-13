@@ -104,15 +104,13 @@ class FollowerNode(Node):
         
         if self.current_goal:
             return
-
-        return # make sure it won't move
         
         current_pose = self.leader_positions[-1]
         for pose in reversed(self.leader_positions):
             distance = ((current_pose[0] - pose[0]) ** 2 + (current_pose[1] - pose[1]) ** 2) ** 0.5
             if distance > self.distance_threshold:
                 self.set_goal(pose)
-                self.leader_positions = self.leader_positions[self.leader_positions.index(pose):]
+                self.current_goal = pose
                 break
 
     def set_goal(self, goal_pose):
@@ -145,6 +143,7 @@ class FollowerNode(Node):
         status = future.result().status
         if status == GoalStatus.STATUS_SUCCEEDED:
             self.get_logger().info('Navigation succeeded')
+            self.leader_positions = self.leader_positions[self.leader_positions.index(self.current_goal):]
             self.current_goal = None
         else:
             self.get_logger().info(f'Navigation failed with status: {status}')
