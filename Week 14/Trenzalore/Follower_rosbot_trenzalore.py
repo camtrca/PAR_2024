@@ -9,61 +9,52 @@ import tf2_ros
 
 class DistanceReceiver(Node):
     def __init__(self):
+        """
+        Initialize the node and set up the TCP client connection to the server.
+        """
         super().__init__('distance_receiver')
+        # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(10.0)
-        try:
-            self.sock.connect(('localhost', 50000))
-            self.get_logger().info("Connected to the server at localhost:50000")
-        except socket.timeout:
-            self.get_logger().error("Connection to the server timed out")
-            return
-        
-    
+        # Connect to the server on the leader robot, assumed to be running on localhost port 50000
+        self.sock.connect(('localhost', 50000))
+        self.get_logger().info("Connected to the server at localhost:50000")
 
-        # Declare parameters with default values x,y,z to 0
-         # Declare parameters with default values
-        self.declare_parameter('leader', {'x': 0.0, 'y': 0.0, 'z': 0.0})
-        leader_param = self.get_parameter('leader').value
+        # Declare parameters with default values x, y, z to 0
+        self.declare_parameter('leader_x', 0.0)
+        self.declare_parameter('leader_y', 0.0)
+        self.declare_parameter('leader_z', 0.0)
+
         self.initial_pos = {
-            'x': leader_param['x'], 'y': leader_param['y'], 'z': leader_param['z']}
+            'x': self.get_parameter('leader_x').get_parameter_value().double_value,
+            'y': self.get_parameter('leader_y').get_parameter_value().double_value,
+            'z': self.get_parameter('leader_z').get_parameter_value().double_value
+        }
         self.last_known_pos = None
-        
-        
-        self.last_position = None
         self.total_distance = 0.0
-        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
 
     def receive_and_process(self):
         try:
-            while rclpy.ok():
-                # Read the length of the data first
-                raw_length = self.sock.recv(4)
-                if raw_length:
-                    data_length = int.from_bytes(raw_length, byteorder='big')
-                    data = b''
-                    while len(data) < data_length:
-                        more = self.sock.recv(data_length - len(data))
-                        if not more:
-                            raise Exception("Socket connection broken")
-                        data += more
-                    odom_data = pickle.loads(data)
-                    
-                    # set relative leader position
-                    self.get_leader_pos(odom_data['position'])
-                    
-                    self.calculate_and_move(odom_data['position'])
+            while True:
+                data = self.sock.recv(4096)  # Receive data from the server
+                if data:
+                    # Deserialize the received data using pickle
+                    distance = pickle.loads(data)
+                    # Log the received distance data
+
+                    self.get_leader_pos(distance['position'])
                 else:
+                    # If no data is received, log and close the connection
                     self.get_logger().info("No more data received, closing connection...")
                     break
         except Exception as e:
+            # Log any exceptions that occur during reception and processing
             self.get_logger().error(f"An error occurred: {e}")
         finally:
+            # Ensure the socket is closed when data reception is done
             self.sock.close()
 
     def get_leader_pos(self, leader_pos):
-        # TODO: extract the leader position to curren_position from the leader_pos variable
-        
+        # Extract the leader position and update the current position
         relative_pos = {
             'x': self.initial_pos['x'] + leader_pos['x'],
             'y': self.initial_pos['y'] + leader_pos['y'],
@@ -72,43 +63,10 @@ class DistanceReceiver(Node):
 
         # Update the last known position
         self.last_known_pos = relative_pos
+        self.get_logger().info(
+            f"Received distance traveled: {self.last_known_pos}")
         angle_to_leader = math.atan2(
             self.last_known_pos['y'], self.last_known_pos['x'])
-        
-
-    def calculate_and_move(self, current_position):
-        if self.last_position is not None:
-            distance = math.sqrt(
-                (current_position['x'] - self.last_position['x']) ** 2 +
-                (current_position['y'] - self.last_position['y']) ** 2 +
-                (current_position['z'] - self.last_position['z']) ** 2)
-            distance = round(distance, 2)
-            if distance > 0.01:
-                self.total_distance += distance
-                self.get_logger().info(f"New distance segment: {
-                    distance}, Total distance: {self.total_distance}")
-                self.move_robot(distance)
-        self.last_position = current_position
-
-    def move_robot(self, distance):
-        velocity = max(0.1, distance / 2)  # Minimum speed threshold
-        move_cmd = Twist()
-        move_cmd.linear.x = velocity
-        move_cmd.angular.z = 0.0
-        self.publisher.publish(move_cmd)
-        # Calculate sleep time based on distance and velocity
-        sleep_time = distance / velocity
-        # Use a ROS 2 timer to handle the waiting without blocking
-        timer = self.create_timer(sleep_time, self.stop_robot)
-        # Keep the node alive until it's time to stop the robot
-        rclpy.spin_once(self, timeout_sec=sleep_time)
-        timer.cancel()  # Cancel the timer if it's still running
-
-    def stop_robot(self):
-        move_cmd = Twist()
-        move_cmd.linear.x = 0.0  # Stop the robot
-        self.publisher.publish(move_cmd)
-        self.get_logger().info("Robot movement command completed.")
 
 
 def main(args=None):
