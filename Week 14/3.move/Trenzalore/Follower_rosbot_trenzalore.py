@@ -12,7 +12,6 @@ import pickle
 class DistanceReceiver(Node):
     def __init__(self):
         super().__init__('distance_receiver_node')
-        
         # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server on the leader robot, assumed to be running on localhost port 50000
@@ -52,7 +51,10 @@ class DistanceReceiver(Node):
         # Calculate angle to target point
         angle_to_point, direction = self.calculate_angle_and_direction(
             position, yaw, self.last_known_pos)
-
+        
+        # Calculate the distance to the target point
+        distance = self.calculate_distance(position, self.last_known_pos)
+        
         self.get_logger().info(
             f'Position - x: {position.x}, y: {position.y}, z: {position.z}, Orientation w: {orientation.w}, '
             f'Angle to Point: {angle_to_point} degrees, Direction: {direction}')
@@ -102,6 +104,15 @@ class DistanceReceiver(Node):
             return self.max_turning_speed
         else:
             return self.min_turning_speed + (self.max_turning_speed - self.min_turning_speed) * (angle / 10)
+        
+    def calculate_distance(self, follower_pos, target_point):
+        """Calculate the distance to the target point."""
+        distance = math.sqrt(
+            (target_point['x'] - follower_pos.x) ** 2 +
+            (target_point['y'] - follower_pos.y) ** 2
+        )
+        return distance
+
 
     def receive_and_process(self):
         try:
@@ -136,7 +147,8 @@ class DistanceReceiver(Node):
         self.last_known_pos = relative_pos
         self.get_logger().info(
             f"Received distance traveled: {self.last_known_pos}")
-
+        
+    
 
 def main(args=None):
     rclpy.init(args=args)
