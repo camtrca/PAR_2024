@@ -8,18 +8,20 @@ class DistanceReceiver(Node):
 
     def __init__(self):
         super().__init__('distance_receiver')
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(10.0)  # Setting initial timeout for connection
+        self.sock = None
+        self.setup_connection()
+        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
 
+    def setup_connection(self):
+        if self.sock:
+            self.sock.close()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect(('localhost', 50000))
             self.get_logger().info("Connected to the server at localhost:50000")
         except socket.timeout:
-            self.get_logger().error("Connection to the server timed out")
-            self.cleanup_socket()
-            return
-
-        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+            self.get_logger().error("Connection to the server timed out, trying again in 5 seconds...")
+            rclpy.get_default_context().call_later(5, self.setup_connection)
 
     def receive_and_process(self):
         try:
@@ -34,23 +36,18 @@ class DistanceReceiver(Node):
                             raise Exception("Socket connection broken")
                         data += more
 
-                    try:
-                        movement_message = pickle.loads(data)
-                        if isinstance(movement_message, str):
-                            self.get_logger().error(f"Received data is a string, expected a dict: {movement_message}")
-                            continue
-
+                    movement_message = pickle.loads(data)
+                    if isinstance(movement_message, dict):
                         self.actuate_robot_based_on_message(movement_message)
                         self.get_logger().info(f"Received movement description: {movement_message}")
-                    except pickle.PickleError as e:
-                        self.get_logger().error(f"Failed to deserialize movement data: {e}")
                 else:
-                    self.get_logger().info("No more data received, stopping robot...")
-                    self.stop_robot()
-                    break
+                    self.get_logger().info("No more data received, attempting to reconnect...")
+                    self.setup_connection()
         except Exception as e:
             self.get_logger().error(f"An error occurred: {e}")
             self.cleanup_socket()
+            self.setup_connection()  # Reconnect after an error after a delay
+
 
     def actuate_robot_based_on_message(self, movement_message):
         twist_data = movement_message.get('twist', {})
