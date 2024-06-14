@@ -9,7 +9,7 @@ class LeaderNode(Node):
     def __init__(self):
         super().__init__('leader_node')
         # Publisher to send pose information
-        self.publisher_ = self.create_publisher(PoseStamped, '/leader/pose_info', 10)
+        # self.publisher_ = self.create_publisher(PoseStamped, '/leader/pose_info', 10)
         self.time_step = 0.1 # frequency of publishing map pose
         self.timer = self.create_timer(self.time_step, self.publish_pose)
 

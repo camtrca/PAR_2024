@@ -9,6 +9,7 @@ from action_msgs.msg import GoalStatus
 from rclpy.action import ActionClient
 import pickle
 import socket
+from visualization_msgs.msg import Marker
 
 class FollowerNode(Node):
     def __init__(self):
@@ -17,15 +18,15 @@ class FollowerNode(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         
-        self.pose_subscription = self.create_subscription(
-            PoseStamped,
-            '/leader/pose_info',
-            self.pose_callback,
-            10)
+        # self.pose_subscription = self.create_subscription(
+        #     PoseStamped,
+        #     '/leader/pose_info',
+        #     self.pose_callback,
+        #     10)
 
         self.scan_subscription = self.create_subscription(
             LaserScan,
-            '/follower/scan',
+            '/scan',
             self.scan_callback,
             10)
 
@@ -35,7 +36,7 @@ class FollowerNode(Node):
         self.leader_positions = []
         self.check_interval = 5  # time interval for checking leader's position
         self.distance_threshold = 1.0  # distance away from the leader
-        self.reviece_msg_timer = 0.1 # timer for tcp
+        self.reviece_msg_timer = 1.0 # timer for tcp
 
         self.navigation_client = ActionClient(self, NavigateToPose, '/navigate_to_pose')
 
@@ -45,7 +46,7 @@ class FollowerNode(Node):
         self.timer = self.create_timer(self.reviece_msg_timer, self.receive_and_process)
 
         # Publisher for RViz visualization
-        self.leader_pose_publisher = self.create_publisher(PoseStamped, '/leader/pose_visual', 10)
+        self.marker_publisher = self.create_publisher(Marker, '/leader/pose_marker', 10)
 
         # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -54,8 +55,8 @@ class FollowerNode(Node):
         self.get_logger().info("Connected to the server at localhost:50000")
 
     def scan_callback(self, msg):
-        if not self.initial_position_set:
-            self.initial_distance = msg.ranges[0]
+        if not self.initial_distance:
+            self.initial_distance = 0.5
             self.get_logger().info(f'Initial distance: {self.initial_distance}')
             self.set_initial_position()
 
@@ -67,7 +68,7 @@ class FollowerNode(Node):
             initial_pose.position.z = 0.0
             initial_pose.orientation.w = 1.0
 
-            transform = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+            transform = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time(), rclpy.time.Duration(seconds=1.0))
             leader_post = tf2_geometry_msgs.do_transform_pose(initial_pose, transform)
             self.leader_init_pose = leader_post
             self.initial_position_set = True
@@ -77,6 +78,14 @@ class FollowerNode(Node):
             self.get_logger().error(f'Failed to get transform: {str(ex)}')
 
     def pose_callback(self, msg):
+        if not self.initial_position_set:
+            return
+        if not self.transform_vector:
+            lx = msg.pose.position.x
+            ly = msg.pose.position.y
+            dx = self.leader_init_pose.position.x - lx
+            dy = self.leader_init_pose.position.y - ly
+            self.transform_vector = (dx, dy)
         transformed_pose = self.apply_transform_vector(msg)
         self.leader_positions.append(transformed_pose)
         
@@ -90,13 +99,29 @@ class FollowerNode(Node):
         return (x, y)
 
     def publish_leader_pose(self, pose):
-        pose_msg = PoseStamped()
-        pose_msg.header.frame_id = 'map'
-        pose_msg.header.stamp = self.get_clock().now().to_msg()
-        pose_msg.pose.position.x = pose[0]
-        pose_msg.pose.position.y = pose[1]
-        pose_msg.pose.orientation.w = 1.0
-        self.leader_pose_publisher.publish(pose_msg)
+        marker = Marker()
+        marker.header.frame_id = 'map'
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = 'leader'
+        marker.id = 0
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.pose.position.x = pose[0]
+        marker.pose.position.y = pose[1]
+        marker.pose.position.z = 0.0
+        marker.pose.orientation.x = 0.0
+        marker.pose.orientation.y = 0.0
+        marker.pose.orientation.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        marker.color.a = 1.0 
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+
+        self.marker_publisher.publish(marker)
 
     def check_and_set_goal(self):
         if not self.leader_positions:
@@ -105,6 +130,8 @@ class FollowerNode(Node):
         if self.current_goal:
             return
         
+        return # make sure it won't move
+    
         current_pose = self.leader_positions[-1]
         for pose in reversed(self.leader_positions):
             distance = ((current_pose[0] - pose[0]) ** 2 + (current_pose[1] - pose[1]) ** 2) ** 0.5
@@ -152,7 +179,6 @@ class FollowerNode(Node):
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
 
-
     def receive_and_process(self):
         """
         Continuously receive and process data from the server.
@@ -165,7 +191,7 @@ class FollowerNode(Node):
                     pose = pickle.loads(data)
                     self.pose_callback(pose) # act like subscriber
                     # Log the received distance data
-                    self.get_logger().info(f"Received data:")
+                    # self.get_logger().info(f"Received data:")
                 else:
                     # If no data is received, log and close the connection
                     self.get_logger().info("No more data received, closing connection...")
