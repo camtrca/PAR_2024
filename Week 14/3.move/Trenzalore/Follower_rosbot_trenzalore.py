@@ -7,6 +7,7 @@ from geometry_msgs.msg import Twist
 import math
 import socket
 import pickle
+import threading
 
 
 class DistanceReceiver(Node):
@@ -15,8 +16,13 @@ class DistanceReceiver(Node):
         # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server on the leader robot, assumed to be running on localhost port 50000
-        self.sock.connect(('localhost', 50000))
-        self.get_logger().info("Connected to the server at localhost:50000")
+        self.sock.connect(('localhost', 50004))
+        self.get_logger().info("Connected to the server at localhost:50004")
+
+        # Declare parameters with default values
+        self.declare_parameter('leader_x', 0.0)
+        self.declare_parameter('leader_y', 0.0)
+        self.declare_parameter('leader_z', 0.0)
 
         self.initial_pos = {
             'x': self.get_parameter('leader_x').get_parameter_value().double_value,
@@ -29,7 +35,7 @@ class DistanceReceiver(Node):
         # Angle control components
         self.subscription = self.create_subscription(
             Odometry,
-            '/odometry/filtered',
+            '/rosbot_base_controller/odom',
             self.odom_callback,
             10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -38,13 +44,18 @@ class DistanceReceiver(Node):
         self.min_turning_speed = 0.1  # Minimum turning speed
         self.safe_distance = 0.5
         self.moving_speed = 0.5
-        
+
+        # Start the thread to receive and process socket data
+        threading.Thread(target=self.receive_and_process, daemon=True).start()
 
     def odom_callback(self, msg):
+        position = msg.pose.pose.position
+        self.get_logger().info(f"Current Position: x: {
+            position.x}, y: {position.y}, z: {position.z}")
+
         if self.last_known_pos is None:
             return
 
-        position = msg.pose.pose.position
         orientation = msg.pose.pose.orientation
 
         # Convert quaternion to euler angles
@@ -53,12 +64,13 @@ class DistanceReceiver(Node):
         # Calculate angle to target point
         angle_to_point, direction = self.calculate_angle_and_direction(
             position, yaw, self.last_known_pos)
-        
+
         # Calculate the distance to the target point
         distance = self.calculate_distance(position, self.last_known_pos)
-        
+
         self.get_logger().info(
-            f'Position - x: {position.x}, y: {position.y}, z: {position.z}, Orientation w: {orientation.w}, '
+            f'Position - x: {position.x}, y: {position.y}, z: {
+                position.z}, Orientation w: {orientation.w}, '
             f'Angle to Point: {angle_to_point} degrees, Direction: {direction}')
 
         # Calculate turning speed based on the angle
@@ -74,11 +86,12 @@ class DistanceReceiver(Node):
         # Stop turning if the angle is small enough (within 1 degree tolerance)
         if abs(angle_to_point) < 1:
             twist.angular.z = 0.0
-        
+
         # Move the robot forward
         if distance > self.safe_distance:
             twist.linear.x = self.moving_speed
-        else : 
+            self.get_logger().info("Go go go")
+        else:
             twist.linear.x = 0.0
 
         self.publisher_.publish(twist)
@@ -112,7 +125,7 @@ class DistanceReceiver(Node):
             return self.max_turning_speed
         else:
             return self.min_turning_speed + (self.max_turning_speed - self.min_turning_speed) * (angle / 10)
-        
+
     def calculate_distance(self, follower_pos, target_point):
         """Calculate the distance to the target point."""
         distance = math.sqrt(
@@ -121,16 +134,15 @@ class DistanceReceiver(Node):
         )
         return distance
 
-
     def receive_and_process(self):
         try:
             while True:
+                self.get_logger().info("Start----------------------------------")
                 data = self.sock.recv(4096)  # Receive data from the server
                 if data:
                     # Deserialize the received data using pickle
                     distance = pickle.loads(data)
                     # Log the received distance data
-
                     self.get_leader_pos(distance['position'])
                 else:
                     # If no data is received, log and close the connection
@@ -153,16 +165,13 @@ class DistanceReceiver(Node):
 
         # Update the last known position
         self.last_known_pos = relative_pos
-        self.get_logger().info(
-            f"Received distance traveled: {self.last_known_pos}")
-        
-    
+
 
 def main(args=None):
     rclpy.init(args=args)
     node = DistanceReceiver()
     try:
-        node.receive_and_process()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         node.get_logger().info('Node shutdown by KeyboardInterrupt')
     finally:

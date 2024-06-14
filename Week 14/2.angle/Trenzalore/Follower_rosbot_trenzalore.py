@@ -19,6 +19,11 @@ class DistanceReceiver(Node):
         self.sock.connect(('localhost', 50000))
         self.get_logger().info("Connected to the server at localhost:50000")
 
+        # Declare parameters with default values
+        self.declare_parameter('leader_x', 0.0)
+        self.declare_parameter('leader_y', 0.0)
+        self.declare_parameter('leader_z', 0.0)
+        
         self.initial_pos = {
             'x': self.get_parameter('leader_x').get_parameter_value().double_value,
             'y': self.get_parameter('leader_y').get_parameter_value().double_value,

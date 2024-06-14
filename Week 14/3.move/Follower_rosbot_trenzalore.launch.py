@@ -21,11 +21,9 @@ def generate_launch_description():
             name='Follower_rosbot_trenzalore',
             output='screen',
             parameters=[{
-                'leader': {
-                    'x': LaunchConfiguration('leader_x'),
-                    'y': LaunchConfiguration('leader_y'),
-                    'z': LaunchConfiguration('leader_z')
-                }
+                'leader_x': LaunchConfiguration('leader_x'),
+                'leader_y': LaunchConfiguration('leader_y'),
+                'leader_z': LaunchConfiguration('leader_z')
             }]
         )
     ])
