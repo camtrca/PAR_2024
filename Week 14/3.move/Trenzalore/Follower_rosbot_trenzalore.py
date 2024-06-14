@@ -40,10 +40,10 @@ class DistanceReceiver(Node):
             10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        self.max_turning_speed = 0.9  # Maximum turning speed
-        self.min_turning_speed = 0.1  # Minimum turning speed
+        self.max_turning_speed = 0.6  # Maximum turning speed
+        self.min_turning_speed = 0.05  # Minimum turning speed
         self.safe_distance = 0.5
-        self.moving_speed = 0.5
+        self.moving_speed = 0.1
 
         # Start the thread to receive and process socket data
         threading.Thread(target=self.receive_and_process, daemon=True).start()
@@ -84,7 +84,7 @@ class DistanceReceiver(Node):
             twist.angular.z = -turning_speed
 
         # Stop turning if the angle is small enough (within 1 degree tolerance)
-        if abs(angle_to_point) < 1:
+        if abs(angle_to_point) < 0.5:
             twist.angular.z = 0.0
 
         # Move the robot forward
