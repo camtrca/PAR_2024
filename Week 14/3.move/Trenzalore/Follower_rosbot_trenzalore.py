@@ -16,7 +16,7 @@ class DistanceReceiver(Node):
         # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server on the leader robot, assumed to be running on localhost port 50000
-        self.sock.connect(('localhost', 50004))
+        self.sock.connect(('localhost', 50000))
         self.get_logger().info("Connected to the server at localhost:50004")
 
         # Declare parameters with default values
