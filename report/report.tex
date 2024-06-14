@@ -1,0 +1,79 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{url}
+
+\title{ROSBot Pro 2.0 Swarm Behaviours}
+\author{
+\IEEEauthorblockN{Haocheng Wang\IEEEauthorrefmark{1}, Huy Do\IEEEauthorrefmark{2}, Shengqing Jin\IEEEauthorrefmark{3}, Yenhsu Chou\IEEEauthorrefmark{4}}
+\IEEEauthorblockA{COSC2781/COSC2814 Programming Autonomous Robots\\
+RMIT University, City Campus\\
+\IEEEauthorrefmark{1}Student ID: 3789513,
+\IEEEauthorrefmark{2}Student ID: 3894502,
+\IEEEauthorrefmark{3}Student ID: 3687137,
+\IEEEauthorrefmark{4}Student ID: 3961072}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report presents the development, implementation, and evaluation of swarm behaviours in ROSBot Pro 2.0 robots.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Swarm behaviour in autonomous robotics involves the coordination of multiple robots to perform tasks collectively. This project focuses on implementing and evaluating swarm behaviours in ROSBot Pro 2.0 robots.
+
+\section{Related Work}
+\label{sec:related}
+The study of swarm robotics includes various algorithms and communication protocols. We chose to use TCP (Transmission Control Protocol) as the communication method between robots.
+
+\section{Methodology}
+\label{sec:method}
+The methodology for this project involves the setup of simulation environments, the implementation of algorithms, and the testing of these algorithms both in simulation and real-world environments.
+
+\subsection{Communication Protocol: Using TCP}
+Using TCP (Transmission Control Protocol) was chosen for this project due to several advantages:
+\begin{itemize}
+    \item \textbf{Reliability}: TCP ensures that data sent from one robot reaches the destination accurately and in the same order it was sent, which is crucial for coordinated actions in swarm behaviour.
+    \item \textbf{Connection-Oriented}: TCP establishes a continuous and dedicated connection, maintaining a steady flow of information necessary for real-time decisions.
+    \item \textbf{Error Checking and Correction}: TCP handles error checking and correction automatically, ensuring complete and accurate information.
+    \item \textbf{Congestion Control}: TCP effectively manages network congestion, maintaining efficient communication within the swarm.
+\end{itemize}
+
+\subsection{Leader-Follower Interaction}
+Two interaction modes were considered:
+\begin{itemize}
+    \item \textbf{Direct Copy}: This mode involves one robot copying the movements of another directly.
+    \item \textbf{Position Tracking and Following}: This mode involves a follower robot receiving positional data from a leader robot and adjusting its movements accordingly.
+\end{itemize}
+
+The implementation of the position tracking and following mode involved the following steps:
+\begin{enumerate}
+    \item Establishing a TCP connection between the leader and follower robots.
+    \item Receiving the leader's positional data and updating the follower's target position.
+    \item Calculating the angle and direction to the target position and adjusting the follower's movement accordingly.
+    \item Continuously monitoring and adjusting the follower's position to maintain the desired distance from the leader.
+\end{enumerate}
+
+\section{Results}
+\label{sec:results}
+result
+
+\section{Evaluation and Discussion}
+\label{sec:evaluation}
+evaluation
+
+\section{Conclusion}
+\label{sec:conclusion}
+conclusion
+
+\section*{References}
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
