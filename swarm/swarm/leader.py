@@ -25,20 +25,6 @@ class Leader(Node):
         # Initialize current position
         self.current_position = (0.0, 0.0)
 
-        # # Subscribe to the 'odometry/filtered' topic to receive odometry messages.
-        # self.subscription = self.create_subscription(
-        #     Odometry,
-        #     '/odometry/filtered',
-        #     self.odom_fileter_callback,
-        #     10)
-
-        # # Create a TCP/IP socket.
-        # self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.sock.bind(('localhost', 50000))
-        # self.sock.listen(1)
-        # self.conn, self.addr = self.sock.accept()
-        # self.get_logger().info("Server is running and connected to a client.")
-
         # Subscribe to the map topic
         self.map_subscriber = self.create_subscription(
             OccupancyGrid, 
@@ -93,16 +79,6 @@ class Leader(Node):
     def start_rotation(self):
         self.is_rotating = True
         self.get_logger().info('Starting rotation')
-
-    def odom__fileter_callback(self, msg):
-        position = msg.pose.pose.position
-        orientation = msg.pose.pose.orientation
-        self.current_position = (position.x, position.y)
-        odom_data = {
-            "position": {"x": position.x, "y": position.y, "z": position.z},
-            "orientation": {"x": orientation.x, "y": orientation.y, "z": orientation.z, "w": orientation.w}
-        }
-        self.send_odom_data(odom_data)
 
     def send_odom_data(self, odom_data):
         try:
@@ -253,7 +229,7 @@ def main(args=None):
             print("Invalid input. Please enter an integer between 1 and 4.")
 
     while shape not in ['circle', 'square', 'map_square']:
-        shape = input("Please select a shape ('circle', 'square', 'map_square'): ").strip().lower()
+        shape = input("Please select a shape ('square', 'map_square'): ").strip().lower()
         if shape not in ['circle', 'square', 'map_square']:
             print("Invalid input. Please enter 'circle', 'square' or 'map_square'.")
 
