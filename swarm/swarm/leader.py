@@ -2,6 +2,10 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from nav_msgs.msg import OccupancyGrid
+from rclpy.action import ActionClient
+from nav2_msgs.action import NavigateToPose
+from action_msgs.msg import GoalStatus
 import math
 import time
 import socket
@@ -16,58 +20,65 @@ class Leader(Node):
         self.get_logger().info(f"Square size set to: {self.square_size}")
         self.get_logger().info(f"Shape type set to: {self.shape_type}")
         self.duration_multi = 1
+
+        # Initialize current position
+        self.current_position = None
+
         # Subscribe to the 'odometry/filtered' topic to receive odometry messages.
         self.subscription = self.create_subscription(
             Odometry,
             '/odometry/filtered',
             self.odom_callback,
             10)
+
         # Create a TCP/IP socket.
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Bind the socket to the server address and listen for incoming connections.
         self.sock.bind(('localhost', 50000))
         self.sock.listen(1)
-        # Accept a connection.
         self.conn, self.addr = self.sock.accept()
         self.get_logger().info("Server is running and connected to a client.")
 
+        # Subscribe to the map topic
+        self.map_subscriber = self.create_subscription(
+            OccupancyGrid, 
+            '/map', 
+            self.map_callback, 
+            10)
+
+        # Create an action client for navigating to a pose
+        self._action_client = ActionClient(self, NavigateToPose, '/navigate_to_pose')
+
     def odom_callback(self, msg):
-        """
-        Callback function that processes odometry messages and sends the data to a client.
-        """
-        # Extract position and orientation data from the odometry message.
         position = msg.pose.pose.position
         orientation = msg.pose.pose.orientation
+        self.current_position = (position.x, position.y)
         odom_data = {
             "position": {"x": position.x, "y": position.y, "z": position.z},
             "orientation": {"x": orientation.x, "y": orientation.y, "z": orientation.z, "w": orientation.w}
         }
-        # Send the structured odometry data to the client.
         self.send_odom_data(odom_data)
 
     def send_odom_data(self, odom_data):
-        """
-        Serialize and send the odometry data to the connected client.
-        """
         try:
-            # Serialize the dictionary using pickle.
             serialized_data = pickle.dumps(odom_data)
-            # Send the serialized data through the socket.
             self.conn.sendall(serialized_data)
             self.get_logger().info(f"Sent odometry data: {odom_data}")
         except Exception as e:
-            # Log and handle exceptions.
             self.get_logger().error(f"Failed to send data: {e}")
-            # Close the current connection and accept a new one in case of failure.
             self.conn.close()
             self.conn, self.addr = self.sock.accept()
             self.get_logger().info("Reconnected to the client.")
+
+    def map_callback(self, msg):
+        self.get_logger().info("Map received")
 
     def run(self):
         if self.shape_type == 'square':
             self.move_in_square()
         elif self.shape_type == 'circle':
             self.move_in_circle()
+        elif self.shape_type == 'map_square':
+            self.move_in_map_square()
         else:
             self.get_logger().error(f"Unknown shape type: {self.shape_type}")
 
@@ -88,10 +99,68 @@ class Leader(Node):
             self.move_forward(step_length)
             self.turn(step_angle)
 
+    def move_in_map_square(self):
+        if self.current_position is None:
+            self.get_logger().error("Current position not available. Ensure odometry data is being received.")
+            return
+
+        self.get_logger().info("Moving in a square based on map points.")
+        x, y = self.current_position
+        points = [
+            (x, y),
+            (x, y + self.square_size),
+            (x + self.square_size, y + self.square_size),
+            (x + self.square_size, y),
+            (x, y)
+        ]
+
+        for point in points:
+            self.send_goal(point[0], point[1])
+            self.wait_for_result()
+
+    def send_goal(self, x, y):
+        self.get_logger().info(f'Sending goal to ({x}, {y})')
+        goal_pose = NavigateToPose.Goal()
+        goal_pose.pose.header.frame_id = 'map'
+        goal_pose.pose.pose.position.x = x
+        goal_pose.pose.pose.position.y = y
+        goal_pose.pose.pose.position.z = 0.0
+        goal_pose.pose.pose.orientation.w = 1.0
+
+        self._action_client.wait_for_server()
+        self._send_goal_future = self._action_client.send_goal_async(
+            goal_pose,
+            feedback_callback=self.feedback_callback)
+        self._send_goal_future.add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected')
+            return
+        self.get_logger().info('Goal accepted')
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        status = future.result().status
+        if status == GoalStatus.STATUS_SUCCEEDED:
+            self.get_logger().info('Navigation succeeded')
+        else:
+            self.get_logger().info(f'Navigation failed with status: {status}')
+
+    def feedback_callback(self, feedback_msg):
+        feedback = feedback_msg.feedback
+
+    def wait_for_result(self):
+        while not self._get_result_future.done():
+            rclpy.spin_once(self, timeout_sec=1.0)
+
     def move_forward(self, distance):
         self.get_logger().info(f"Moving forward {distance} units.")
         twist = Twist()
-        twist.linear.x = 0.5  # Adjust speed as necessary
+        twist.linear.x = 0.5
         duration = distance / twist.linear.x
         end_time = self.get_clock().now() + rclpy.time.Duration(seconds=duration*self.duration_multi)
         while self.get_clock().now() < end_time:
@@ -100,12 +169,12 @@ class Leader(Node):
 
         twist.linear.x = 0.0
         self.publisher_.publish(twist)
-        time.sleep(1)  # Give some time to stop
+        time.sleep(1)
 
     def turn(self, angle):
         self.get_logger().info(f"Turning {angle} degrees.")
         twist = Twist()
-        twist.angular.z = math.radians(90)  # Adjust turn speed as necessary
+        twist.angular.z = math.radians(90)
         duration = math.radians(angle) / twist.angular.z
         end_time = self.get_clock().now() + rclpy.time.Duration(seconds=duration*self.duration_multi)
         while self.get_clock().now() < end_time:
@@ -114,7 +183,7 @@ class Leader(Node):
 
         twist.angular.z = 0.0
         self.publisher_.publish(twist)
-        time.sleep(1)  # Give some time to stop
+        time.sleep(1)
 
 def main(args=None):
     rclpy.init(args=args)
@@ -122,16 +191,16 @@ def main(args=None):
     size = 0
     shape = ''
 
-    while size not in [1, 2, 3, 4]:
+    while size>4 or size <1:
         try:
             size = int(input("Please select a size between 1 and 4: "))
         except ValueError:
             print("Invalid input. Please enter an integer between 1 and 4.")
 
-    while shape not in ['circle', 'square']:
-        shape = input("Please select a shape ('circle' or 'square'): ").strip().lower()
-        if shape not in ['circle', 'square']:
-            print("Invalid input. Please enter 'circle' or 'square'.")
+    while shape not in ['circle', 'square', 'map_square']:
+        shape = input("Please select a shape ('circle', 'square', 'map_square'): ").strip().lower()
+        if shape not in ['circle', 'square', 'map_square']:
+            print("Invalid input. Please enter 'circle', 'square' or 'map_square'.")
 
     leader = Leader(size, shape)
 
