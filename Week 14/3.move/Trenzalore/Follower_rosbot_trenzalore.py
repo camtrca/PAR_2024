@@ -35,7 +35,7 @@ class DistanceReceiver(Node):
         # Angle control components
         self.subscription = self.create_subscription(
             Odometry,
-            '/rosbot_base_controller/odom',
+            '/odometry/filtered',
             self.odom_callback,
             10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
