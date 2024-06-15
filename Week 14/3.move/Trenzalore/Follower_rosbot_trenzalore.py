@@ -16,7 +16,7 @@ class DistanceReceiver(Node):
         # Create a TCP/IP socket for receiving messages
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Connect to the server on the leader robot, assumed to be running on localhost port 50000
-        self.sock.connect(('localhost', 50000))
+        self.sock.connect(('localhost', 50004))
         self.get_logger().info("Connected to the server at localhost:50004")
 
         # Declare parameters with default values
@@ -42,8 +42,10 @@ class DistanceReceiver(Node):
 
         self.max_turning_speed = 0.6  # Maximum turning speed
         self.min_turning_speed = 0.05  # Minimum turning speed
-        self.safe_distance = 0.5
-        self.moving_speed = 0.1
+        self.safe_distance = 1.0
+        self.dangerous_distance = 0.5
+        self.moving_speed = 0.25
+        self.back_speed = - 0.4
 
         # Start the thread to receive and process socket data
         threading.Thread(target=self.receive_and_process, daemon=True).start()
@@ -71,7 +73,7 @@ class DistanceReceiver(Node):
         self.get_logger().info(
             f'Position - x: {position.x}, y: {position.y}, z: {
                 position.z}, Orientation w: {orientation.w}, '
-            f'Angle to Point: {angle_to_point} degrees, Direction: {direction}')
+            f'Angle to Point: {angle_to_point} degrees, Direction: {direction}, Distance: {distance}')
 
         # Calculate turning speed based on the angle
         turning_speed = self.calculate_turning_speed(angle_to_point)
@@ -91,8 +93,10 @@ class DistanceReceiver(Node):
         if distance > self.safe_distance:
             twist.linear.x = self.moving_speed
             self.get_logger().info("Go go go")
-        else:
+        elif distance > self.dangerous_distance:
             twist.linear.x = 0.0
+        else:
+            twist.linear.x = self.back_speed
 
         self.publisher_.publish(twist)
 
