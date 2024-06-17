@@ -1,0 +1,5 @@
+moving square by cmd_vel and odom
+https://youtu.be/XKz3qhnmtnU
+
+moving square by map nav
+https://youtu.be/6_wGV4qBeuI
