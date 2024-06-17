@@ -9,8 +9,7 @@ import socket
 class ProcessedPublisher(Node):
     def __init__(self):
         super().__init__('processed_publisher')
-        self.subscription = self.create_subscription(Twist, '/cmd_vel',
-            self.listener_callbace, 10)
+        self.subscription = self.create_subscription(Twist, '/cmd_vel', self.listener_callbace, 10)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create a TCP socket, for sending messages
         self.sock.connect(('localhost', 50000)) # Connect to the server
 
