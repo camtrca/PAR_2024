@@ -5,8 +5,8 @@ import socket
 import pickle
 
 class OdometryServer(Node):
-    """
-    A ROS node that acts as a server to send serialized odometry data to a connected client over TCP.
+    """i
+    The server node for the Temeria(Leader) acts as a server to send serialized odometry data to a connected client over TCP.
     """
     def __init__(self):
         """
@@ -16,14 +16,17 @@ class OdometryServer(Node):
         # Subscribe to the 'odometry/filtered' topic to receive odometry messages.
         self.subscription = self.create_subscription(
             Odometry,
-            '/odometry/filtered',
+            '/odometry/filtered',  # please use this topic and only this topic
             self.odom_callback,
             10)
+        
         # Create a TCP/IP socket.
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         # Bind the socket to the server address and listen for incoming connections.
         self.sock.bind(('localhost', 50004))
         self.sock.listen(1)
+        
         # Accept a connection.
         self.conn, self.addr = self.sock.accept()
         self.get_logger().info("Server is running and connected to a client.")
