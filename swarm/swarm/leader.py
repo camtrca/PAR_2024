@@ -21,6 +21,7 @@ class Leader(Node):
         self.get_logger().info(f"Shape type set to: {self.shape_type}")
         self.duration_multi = 1
         self.current_goal = False
+        self.reach_goal = False
 
         # Initialize current position
         self.current_position = (0.0, 0.0)
@@ -137,8 +138,10 @@ class Leader(Node):
         ]
 
         for point in points:
-            self.send_goal(point[0], point[1])
-            self.wait_for_result()
+            self.reach_goal = False
+            while not self.reach_goal:
+                self.send_goal(point[0], point[1])
+                self.wait_for_result()
 
     def send_goal(self, x, y):
         self.get_logger().info(f'Sending goal to ({x}, {y})')
@@ -172,9 +175,10 @@ class Leader(Node):
         if status == GoalStatus.STATUS_SUCCEEDED:
             self.get_logger().info('Navigation succeeded')
             self.current_goal = False
+            self.reach_goal = True
         else:
             self.get_logger().info(f'Navigation failed with status: {status}')
-            self.current_goal=True
+            self.current_goal=False
 
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
