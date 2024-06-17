@@ -9,7 +9,7 @@ import socket
 class ProcessedSubscriber(Node):
     def __init__(self):
         super().__init__('processed_subscriber')
-        self.publisher = self.create_publisher(Twist, '/temeria/cmd_vel', 10) # Adjust the topic name
+        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10) # Adjust the topic name
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Create a TCP socket, for receiving messages
         self.sock.bind(('localhost', 50000)) # Bind the socket to the address
         self.sock.listen(1) # Listen for incoming connections
