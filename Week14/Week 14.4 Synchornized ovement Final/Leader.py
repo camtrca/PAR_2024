@@ -8,6 +8,9 @@ import socket
 class Leader(Node):
     def __init__(self):
         super().__init__('leader')
+        
+        self.subscription = self.create_subscription(Twist, '/cmd_vel', self.listener_callback, 10)
+        
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('localhost', 50000))
@@ -26,12 +29,30 @@ class Leader(Node):
                 self.get_logger().info("Connected to a client.")
         except Exception as e:
             self.get_logger().error(f"Error accepting connections: {e}")
+        
+    def listener_callback(self, msgs):
+        if not self.conn:
+            self.try_accept_connection()
+        else:
+            try:
+                serialized_data = pickle.dumps(msgs)
+                self.conn.sendall(serialized_data)
+                self.get_logger().info("Sent data successfully")
+            except Exception as e:
+                self.get_logger().error(f"Failed to send data: {e}")
+                self.cleanup_connection()
     
     def cleanup_connection(self):
         if self.conn:
             self.conn.close()
             self.conn = None
             self.get_logger().info("Connection closed and ready for a new client.")
+        
+    def destroy_node(self):
+        if self.conn:
+            self.conn.close()
+        self.sock.close()
+        super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
