@@ -24,7 +24,6 @@ setup(
     entry_points={
         'console_scripts': [
             'leader_node = swarm.leader:main',
-            'follower_node = swarm.follower:main',
         ],
     },
 )

@@ -8,9 +8,4 @@ def generate_launch_description():
             executable='leader_node',
             output='screen'
         ),
-        Node(
-            package='swarm',
-            executable='follower_node',
-            output='screen'
-        ),
     ])
