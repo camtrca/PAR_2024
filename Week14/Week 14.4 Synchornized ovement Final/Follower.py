@@ -9,22 +9,21 @@ import select
 
 class Follower(Node):
     def __init__(self):
-        super().__init__('follower')
-
+        super().__init__('distance_receiver')
+        self.sock = None
+        self.setup_connection()
         self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
 
+    def setup_connection(self):
+        if self.sock:
+            self.sock.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(10.0)
         try:
             self.sock.connect(('localhost', 50000))
             self.get_logger().info("Connected to the server at localhost:50000")
         except socket.timeout:
-            self.get_logger().error("Connection to the server timed out")
-            return
-        
-        self.last_position = None
-        self.total_distance = 0.0
-        self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+            self.get_logger().error("Connection to the server timed out, trying again in 5 seconds...")
+            rclpy.get_default_context().call_later(5, self.setup_connection)
 
     def receive_and_process(self):
         try:
@@ -40,7 +39,12 @@ class Follower(Node):
                             raise Exception("Socket connection broken")
                         data += more
                     twist_data = pickle.loads(data)
-                    self.publisher.publish(twist_data)
+                    if isinstance(twist_data, Twist):
+                        self.get_logger().info(f"Publishing Twist data: {twist_data}")
+                        self.publisher.publish(twist_data)
+                    else:
+                        self.get_logger().error("Received data is not of type Twist")
+
                 else:
                     self.get_logger().info("No more data received, closing connection...")
                     break
