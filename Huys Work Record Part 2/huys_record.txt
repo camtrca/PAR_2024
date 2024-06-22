@@ -1,0 +1,9 @@
+1. Angular controller node in stimulation
+2. Transform leader postion to follower frame (Transformation code and launch file)
+3. Implement algorithm in stimulation to real robot to perform follow leader behaviour
+
+week 13 Link Angular movement:
+https://rmiteduau-my.sharepoint.com/:v:/g/personal/s3894502_student_rmit_edu_au/EUpOZJBosBJCkYcPLhhDmNABj3e1hlML1zlPuvulCeqARw?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=7HgD41
+
+Week 14 Link go to a specific point :
+https://rmiteduau-my.sharepoint.com/:v:/g/personal/s3894502_student_rmit_edu_au/ESNhNxfLovRLkGnrGsVf7QABhRMBQ_sVjxw81ozhGHS5dQ?e=p9aQ4H
