@@ -1,4 +1,0 @@
-1. Research how to launch multiple robots in stimulation with namespace
-2. Create communication method to transfer leader's movement information to other robots
-3. Create avoid collision for follower robots (not completed)
-4. Demonstration video (https://rmiteduau-my.sharepoint.com/:v:/g/personal/s3894502_student_rmit_edu_au/EXF8lGZWU9FKsQJuCnb0Z3QBXRvUxcLEVPCEpcsT74heKw?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=fQfM4g)
