@@ -1,0 +1,31 @@
+leader node: publish the position via odometry
+
+follower node: 
+- subscribe to the position of the:  
+		data = self.sock.recv(4096)
+		distance = pickle.loads(data)
+- 
+
+
+Exploration: 
+1. understand the tranform tree of leader odom to see if any transformation to its base_link. 
+2. write launch file to set the initial position of the leader in follower node.
+3. current Follower node able to get the raw odom data. Now knowing the leader start at x postion. Make transform tree to transform the leader position to y in follower. Example: 
+	- leader knows it start at (0,0,0) to its frame, 
+	- the follower also starts at (0,0,0) to its frame,
+	- in the map of the follower, let the leader start at (0,1,0).
+	- A so write the transform tree to let the follower know the current position of the leader according to follower. So the position of the leader from the odom (0,0,0) now in follower node is (0,1,0), When the leader moves to (1,0,0), the follower knows it is at (1,1,0).
+4. After knowing the leader position, the follower can move to leader by:
+- distance from the leader to the follower: ((xF-xL)^2+(yF-xL)^2)^0.5
+
+10/07 update:
+Don't need proper transform tree as initial position of the leader is set and current position of the follower is set by odom data which has its own transform tree.
+Challenges:
+- Determine the turning angle for the follower
+
+We can archive the angle from the position but it is just a raw angle not final angle from follower front side.
+Todo:
+- basic movement if distance is less than 0.5
+- get correct angle
+- make correct turn to leader ( can be gradually small turns to leader)
+- laser scan to avoid collision
