@@ -1,0 +1,10 @@
+1. The project simulates a scenario where a follower robot mimics the movements of a leader robot.
+2. The leader robot uses odometry data to get its actions and publishes this information, including velocity and angular velocity, to the /leader/vel_info topic every 0.1 seconds.
+3. The follower robot subscribes to this topic to receive and understand the leader's current status.
+
+- At the start, the follower assumes the obstacle ahead is the leader and calculates the distance needed to reach the leader's position.
+- As the leader moves, the follower records the leader's velocity information.
+- The follower moves to the leader's position and mimics the leader's behavior using the recorded velocity data.
+- If the leader stops, the follower stops immediately, maintaining a safe distance to avoid collisions.
+- The follower avoids collisions with walls by entirely following the leader's behavior.
+- This implementation does not account for dynamic obstacles.
